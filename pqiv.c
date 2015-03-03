@@ -289,6 +289,7 @@ gboolean option_shuffle = FALSE;
 gboolean option_reverse_cursor_keys = FALSE;
 gboolean option_transparent_background = FALSE;
 gboolean option_watch_directories = FALSE;
+gboolean option_disable_wrap_around = FALSE;
 gboolean option_fading = FALSE;
 gboolean option_lazy_load = FALSE;
 gboolean option_lowmem = FALSE;
@@ -346,6 +347,7 @@ GOptionEntry options[] = {
 	{ "max-depth", 0, 0, G_OPTION_ARG_INT, &option_max_depth, "Descend at most LEVELS levels of directories below the command line arguments", "LEVELS" },
 	{ "shuffle", 0, 0, G_OPTION_ARG_NONE, &option_shuffle, "Shuffle files", NULL },
 	{ "watch-directories", 0, 0, G_OPTION_ARG_NONE, &option_watch_directories, "Watch directories for new files", NULL },
+	{ "disable-wrap-around", 0, 0, G_OPTION_ARG_NONE, &option_disable_wrap_around, "In slideshow mode, do not jump from the last to the first image", NULL },
 
 	{ NULL, 0, 0, 0, NULL, NULL, NULL }
 };
@@ -2214,7 +2216,23 @@ gboolean slideshow_timeout_callback(gpointer user_data) {/*{{{*/
 	// Always abort this source: The clock will run again as soon as the image has been loaded.
 	// The draw callback addes a new timeout if we set the timeout id to zero:
 	slideshow_timeout_id = 0;
-	relative_image_movement(1);
+
+	if(option_disable_wrap_around) {
+		D_LOCK(file_tree);
+		BOSNode *target = relative_image_pointer(1);
+		if(target == bostree_select(file_tree, 0)) {
+			D_UNLOCK(file_tree);
+			return FALSE;
+		}
+		target = bostree_node_weak_ref(target);
+		D_UNLOCK(file_tree);
+
+
+		absolute_image_movement(target);
+	}
+	else {
+		relative_image_movement(1);
+	}
 	return FALSE;
 }/*}}}*/
 gboolean fading_timeout_callback(gpointer user_data) {/*{{{*/
